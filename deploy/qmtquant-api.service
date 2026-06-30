@@ -7,13 +7,13 @@ Wants=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/data/qmtquant
+WorkingDirectory=/data2/qmtquant
 
 # 从 .env 文件自动加载环境变量（DATA_API_HOST、DATA_API_PORT、XQSHARE_REMOTE_HOST 等）
-EnvironmentFile=/data/qmtquant/.env
+EnvironmentFile=/data2/qmtquant/.env
 
 # 使用虚拟环境中的 Python 启动 data-api 服务
-ExecStart=/data/qmtquant/venv/bin/python dm_cli.py data-api
+ExecStart=/data2/qmtquant/venv/bin/python dm_cli.py data-api
 
 # 崩溃后自动重启，等待 10 秒
 Restart=on-failure

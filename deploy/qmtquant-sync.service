@@ -6,14 +6,14 @@ After=network.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/data/qmtquant
-EnvironmentFile=/data/qmtquant/.env
+WorkingDirectory=/data2/qmtquant
+EnvironmentFile=/data2/qmtquant/.env
 
 # 第一步：同步辅助数据（交易日历 + 合约信息）
-ExecStart=/data/qmtquant/venv/bin/python dm_cli.py sync --asset stock --sub calendar,instrument
+ExecStart=/data2/qmtquant/venv/bin/python dm_cli.py sync --asset stock --sub calendar,instrument
 
 # 第二步：同步 K 线数据（沪深 A 股全量）
-ExecStart=/data/qmtquant/venv/bin/python dm_cli.py sync --asset stock --sub kline --sector 沪深A股
+ExecStart=/data2/qmtquant/venv/bin/python dm_cli.py sync --asset stock --sub kline --sector 沪深A股
 
 # 超时设置：全量同步可能耗时较长，设置 4 小时超时
 TimeoutStartSec=14400

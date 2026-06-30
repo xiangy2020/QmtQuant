@@ -7,7 +7,7 @@
 ```
 Windows 机器（内网）                    Linux 服务器（内网）
 ┌─────────────────────┐                ┌──────────────────────────────┐
-│  miniQMT            │                │  /data/qmtquant/             │
+│  miniQMT            │                │  /data2/qmtquant/             │
 │  xqshare server     │◄──── rpyc ────►│  xqshare client              │
 │  （数据源）          │   内网连接      │  ↓                           │
 └─────────────────────┘                │  数据采集 → Parquet 缓存      │
@@ -89,10 +89,10 @@ Windows 机器上的 xqshare server 必须：
 ### 步骤 1：克隆项目
 
 ```bash
-# 将项目克隆到 /data/qmtquant
+# 将项目克隆到 /data2/qmtquant
 sudo mkdir -p /data
-sudo git clone git@github.com:xiangy2020/QmtQuant.git /data/qmtquant
-cd /data/qmtquant
+sudo git clone git@github.com:xiangy2020/QmtQuant.git /data2/qmtquant
+cd /data2/qmtquant
 ```
 
 ### 步骤 2：运行一键初始化脚本
@@ -103,7 +103,7 @@ bash deploy/setup.sh
 
 脚本将自动完成：
 - 检查 Python 3.13
-- 创建虚拟环境 `/data/qmtquant/venv`
+- 创建虚拟环境 `/data2/qmtquant/venv`
 - 安装 `requirements.txt` 全部依赖
 - 打印关键依赖版本摘要
 - 提示 systemd 服务安装命令
@@ -114,10 +114,10 @@ bash deploy/setup.sh
 
 ```bash
 # 复制配置模板
-cp /data/qmtquant/deploy/env.linux.example /data/qmtquant/.env
+cp /data2/qmtquant/deploy/env.linux.example /data2/qmtquant/.env
 
 # 编辑配置，填写 Windows 机器 IP
-vim /data/qmtquant/.env
+vim /data2/qmtquant/.env
 ```
 
 **必填项：**
@@ -137,9 +137,9 @@ DATA_API_PORT=8765           # data-api 监听端口，默认 8765
 
 ```bash
 # 复制服务文件
-sudo cp /data/qmtquant/deploy/qmtquant-api.service  /etc/systemd/system/
-sudo cp /data/qmtquant/deploy/qmtquant-sync.service /etc/systemd/system/
-sudo cp /data/qmtquant/deploy/qmtquant-sync.timer   /etc/systemd/system/
+sudo cp /data2/qmtquant/deploy/qmtquant-api.service  /etc/systemd/system/
+sudo cp /data2/qmtquant/deploy/qmtquant-sync.service /etc/systemd/system/
+sudo cp /data2/qmtquant/deploy/qmtquant-sync.timer   /etc/systemd/system/
 
 # 重新加载 systemd 配置
 sudo systemctl daemon-reload
@@ -162,7 +162,7 @@ sudo systemctl enable --now qmtquant-sync.timer
 ### 3.1 验证 xqshare 连接
 
 ```bash
-cd /data/qmtquant
+cd /data2/qmtquant
 source venv/bin/activate
 
 # 测试 xqshare 连接（会打印平台环境信息）
@@ -248,7 +248,7 @@ sudo systemctl stop qmtquant-sync.timer
 ### 手动执行 CLI 命令
 
 ```bash
-cd /data/qmtquant
+cd /data2/qmtquant
 source venv/bin/activate
 
 # 手动同步交易日历和合约信息
@@ -276,7 +276,7 @@ python dm_cli.py data-api --host 0.0.0.0 --port 8765
 
 1. 确认 `.env` 中 `XQSHARE_REMOTE_HOST` 已填写正确 IP：
    ```bash
-   grep XQSHARE_REMOTE_HOST /data/qmtquant/.env
+   grep XQSHARE_REMOTE_HOST /data2/qmtquant/.env
    ```
 
 2. 测试网络连通性：
@@ -306,7 +306,7 @@ sudo ss -tlnp | grep 8765
 sudo lsof -i :8765
 
 # 方案 A：修改 data-api 端口
-vim /data/qmtquant/.env
+vim /data2/qmtquant/.env
 # 修改：DATA_API_PORT=9000
 sudo systemctl restart qmtquant-api
 
@@ -343,7 +343,7 @@ tar -xzf Python-3.13.0.tgz && cd Python-3.13.0
 make -j$(nproc) && sudo make altinstall
 
 # 重新运行部署脚本
-bash /data/qmtquant/deploy/setup.sh
+bash /data2/qmtquant/deploy/setup.sh
 ```
 
 ---
@@ -360,16 +360,16 @@ journalctl -u qmtquant-api -n 50 --no-pager
 
 # 常见原因：
 # 1. .env 文件不存在或 XQSHARE_REMOTE_HOST 未填写
-ls -la /data/qmtquant/.env
-grep XQSHARE_REMOTE_HOST /data/qmtquant/.env
+ls -la /data2/qmtquant/.env
+grep XQSHARE_REMOTE_HOST /data2/qmtquant/.env
 
 # 2. 虚拟环境不存在或依赖未安装
-ls /data/qmtquant/venv/bin/python
-/data/qmtquant/venv/bin/python -c "import fastapi; import uvicorn; print('OK')"
+ls /data2/qmtquant/venv/bin/python
+/data2/qmtquant/venv/bin/python -c "import fastapi; import uvicorn; print('OK')"
 
 # 3. 手动前台运行排查具体错误
-cd /data/qmtquant
-/data/qmtquant/venv/bin/python dm_cli.py data-api
+cd /data2/qmtquant
+/data2/qmtquant/venv/bin/python dm_cli.py data-api
 ```
 
 ---
@@ -385,7 +385,7 @@ cd /data/qmtquant
 journalctl -u qmtquant-sync -n 100 --no-pager
 
 # 手动执行同步命令，观察详细输出
-cd /data/qmtquant
+cd /data2/qmtquant
 source venv/bin/activate
 python dm_cli.py sync --asset stock --sub calendar,instrument
 python dm_cli.py sync --asset stock --sub kline --sector 沪深A股

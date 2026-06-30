@@ -2,7 +2,7 @@
 # =============================================================================
 # QmtQuant Linux 一键部署脚本
 # 用途：在全新 Linux 服务器上完成环境初始化
-# 项目目录：/data/qmtquant
+# 项目目录：/data2/qmtquant
 # =============================================================================
 
 set -euo pipefail
@@ -21,7 +21,7 @@ error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 section() { echo -e "\n${BOLD}${BLUE}=== $* ===${NC}"; }
 
 # ── 常量 ──────────────────────────────────────────────────────────────────────
-PROJECT_DIR="/data/qmtquant"
+PROJECT_DIR="/data2/qmtquant"
 VENV_DIR="${PROJECT_DIR}/venv"
 PYTHON_BIN=""
 REQUIRED_PYTHON_MAJOR=3
