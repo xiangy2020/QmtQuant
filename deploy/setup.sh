@@ -58,8 +58,13 @@ QmtQuant Linux 一键部署脚本。
   sudo apt update
   sudo apt install python3.13 python3.13-venv python3.13-dev
 
-安装 Python 3.13（CentOS/RHEL）：
-  sudo dnf install python3.13 python3.13-devel
+安装 Python 3.13（CentOS/RHEL/TencentOS，源码编译）：
+  sudo yum groupinstall -y "Development Tools"
+  sudo yum install -y openssl-devel bzip2-devel libffi-devel zlib-devel readline-devel sqlite-devel xz-devel wget
+  cd /tmp && wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz
+  tar -xzf Python-3.13.0.tgz && cd Python-3.13.0
+  ./configure --enable-optimizations --with-ensurepip=install
+  make -j\$(nproc) && sudo make altinstall
 EOF
 }
 
@@ -99,8 +104,13 @@ else
     echo "    sudo apt update"
     echo "    sudo apt install python3.13 python3.13-venv python3.13-dev"
     echo ""
-    echo "  CentOS/RHEL 安装方式："
-    echo "    sudo dnf install python3.13 python3.13-devel"
+    echo "  CentOS/RHEL/TencentOS 安装方式（源码编译）："
+    echo "    sudo yum groupinstall -y 'Development Tools'"
+    echo "    sudo yum install -y openssl-devel bzip2-devel libffi-devel zlib-devel readline-devel sqlite-devel xz-devel wget"
+    echo "    cd /tmp && wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz"
+    echo "    tar -xzf Python-3.13.0.tgz && cd Python-3.13.0"
+    echo "    ./configure --enable-optimizations --with-ensurepip=install"
+    echo "    make -j\$(nproc) && sudo make altinstall"
     echo ""
     exit 1
 fi
