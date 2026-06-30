@@ -1,0 +1,16 @@
+[Unit]
+Description=QmtQuant 数据同步定时器（每天 17:00 触发，A股收盘后自动同步）
+Requires=qmtquant-sync.service
+
+[Timer]
+# 每天 17:00:00 触发（A股收盘时间为 15:00，17:00 确保数据已完整）
+OnCalendar=*-*-* 17:00:00
+
+# 若错过触发时间（如服务器关机），下次启动时立即补跑
+Persistent=true
+
+# 随机延迟，避免多台服务器同时触发（单机部署可设为 0）
+RandomizedDelaySec=0
+
+[Install]
+WantedBy=timers.target

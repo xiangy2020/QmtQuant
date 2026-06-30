@@ -1,0 +1,2917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QmtQuant 数据看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── 全局变量 ── */
+    :root {
+      --bg-primary:    #f5f6fa;
+      --bg-secondary:  #ffffff;
+      --bg-control:    #f0f1f5;
+      --bg-hover:      #e8eaf0;
+      --text-primary:  #1a1a2e;
+      --text-secondary:#555770;
+      --text-disabled: #aaaabc;
+      --border-default:#dde1ec;
+      --border-focus:  #b0b8d0;
+      --accent-blue:   #1976d2;
+      --accent-green:  #2e7d32;
+      --accent-yellow: #e65100;
+      --accent-red:    #c62828;
+      --accent-purple: #6a1b9a;
+      --accent-teal:   #00695c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                   "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── 顶部导航 ── */
+    .topbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-default);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      letter-spacing: 0.5px;
+    }
+    .topbar-subtitle {
+      color: var(--text-disabled);
+      font-size: 12px;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .export-time {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      display: inline-block;
+    }
+    .dot.warn { background: var(--accent-yellow); }
+    .dot.error { background: var(--accent-red); }
+
+    /* ── 主内容区 ── */
+    .main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* ── 错误/加载提示 ── */
+    .loading-msg, .error-msg {
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text-secondary);
+    }
+    .error-msg { color: var(--accent-red); }
+    .error-msg code {
+      display: block;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-disabled);
+      font-family: monospace;
+    }
+
+    /* ── 卡片 ── */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .icon { font-size: 16px; }
+
+    /* ── 概览指标行 ── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .metric-value.warn { color: var(--accent-yellow); }
+    .metric-value.ok   { color: var(--accent-green); }
+    .metric-value.blue { color: var(--accent-blue); }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--text-disabled);
+      margin-top: 4px;
+    }
+
+    /* ── 品类状态网格 ── */
+    .asset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .asset-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .asset-card.disabled {
+      opacity: 0.45;
+    }
+    .asset-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .asset-name {
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .asset-key {
+      font-size: 11px;
+      color: var(--text-disabled);
+      font-family: monospace;
+      background: var(--bg-secondary);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .asset-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .badge-ok     { background: #e8f5e9;  color: var(--accent-green); }
+    .badge-empty  { background: #fff3e0;  color: var(--accent-yellow); }
+    .badge-disabled { background: #f0f0f5; color: var(--text-disabled); }
+
+    .asset-body { padding: 12px 16px; }
+    .asset-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      font-size: 13px;
+    }
+    .asset-stat-row:last-child { border-bottom: none; }
+    .stat-label { color: var(--text-secondary); }
+    .stat-value { color: var(--text-primary); font-weight: 500; }
+    .stat-value.muted { color: var(--text-disabled); }
+
+    /* ── 子类列表 ── */
+    .sub-types-section {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-default);
+    }
+    .sub-types-title {
+      font-size: 11px;
+      color: var(--text-disabled);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
+    .sub-type-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .sub-type-item:last-child { border-bottom: none; }
+    .sub-type-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sub-status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sub-status-dot.ok    { background: var(--accent-green); }
+    .sub-status-dot.empty { background: var(--accent-yellow); }
+    .sub-type-name { color: var(--text-primary); }
+    .sub-type-key  { color: var(--text-disabled); font-family: monospace; font-size: 11px; }
+    .sub-type-right { color: var(--text-secondary); font-size: 11px; text-align: right; }
+
+    /* ── K线周期明细表格 ── */
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .icon { color: var(--accent-blue); }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border-default);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead tr {
+      background: var(--bg-control);
+    }
+    thead th {
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-default);
+      white-space: nowrap;
+    }
+    thead th.right { text-align: right; }
+    tbody tr {
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      transition: background 0.15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-hover); }
+    tbody td {
+      padding: 9px 14px;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+    tbody td.right { text-align: right; }
+    tbody td.muted { color: var(--text-disabled); }
+    tbody td.mono  { font-family: monospace; font-size: 12px; }
+
+    /* ── 进度条 ── */
+    .progress-bar-wrap {
+      background: var(--bg-primary);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--accent-blue);
+      transition: width 0.3s;
+    }
+    .progress-bar.warn { background: var(--accent-yellow); }
+
+    /* ── 辅助数据卡片 ── */
+    .aux-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .aux-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .aux-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .aux-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .aux-card-count {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      margin-bottom: 4px;
+    }
+    .aux-card-range {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ── 缓存路径 ── */
+    .cache-path {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-control);
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border-default);
+      word-break: break-all;
+    }
+
+    /* ── 空状态 ── */
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-disabled);
+      font-size: 13px;
+    }
+
+    /* ── 分隔线 ── */
+    .divider {
+      height: 1px;
+      background: var(--border-default);
+      margin: 24px 0;
+    }
+
+    /* ── Tab 导航 ── */
+    .tab-bar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-default);
+      padding: 0 24px;
+      display: flex;
+      gap: 0;
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+    .tab-btn.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+      font-weight: 600;
+    }
+
+    /* ── Tab 内容区 ── */
+    .tab-pane {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .tab-pane.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* ── 分析页：周期卡片行 ── */
+    .period-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 4px;
+    }
+    .period-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 16px 18px;
+    }
+    .period-card-label {
+      font-size: 11px;
+      color: var(--text-disabled);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+    .period-card-period {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      font-family: monospace;
+      margin-bottom: 8px;
+    }
+    .period-card-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 2px 0;
+    }
+    .period-card-row span:last-child {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* ── 分析页：时效性卡片 ── */
+    .freshness-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    .freshness-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .freshness-period {
+      font-size: 13px;
+      font-weight: 600;
+      font-family: monospace;
+      color: var(--text-primary);
+    }
+    .freshness-date {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .freshness-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      width: fit-content;
+    }
+    .freshness-badge.fresh  { background: #e8f5e9; color: var(--accent-green); }
+    .freshness-badge.warn   { background: #fff3e0; color: var(--accent-yellow); }
+    .freshness-badge.stale  { background: #ffebee; color: var(--accent-red); }
+    .freshness-badge.nodata { background: var(--bg-primary); color: var(--text-disabled); }
+
+    /* ── 分析页：环形图 ── */
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .donut-svg-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .donut-center-text {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+    }
+    .donut-center-num {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .donut-center-label {
+      font-size: 11px;
+      color: var(--text-disabled);
+    }
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-width: 160px;
+    }
+    .donut-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .donut-legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .donut-legend-name {
+      color: var(--text-primary);
+      font-family: monospace;
+      font-weight: 600;
+    }
+    .donut-legend-val {
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-left: auto;
+    }
+
+    /* ── 分析页：板块表格排序 ── */
+    thead th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th.sortable:hover {
+      background: var(--bg-hover);
+    }
+    thead th.sort-asc::after  { content: ' ▲'; font-size: 10px; }
+    thead th.sort-desc::after { content: ' ▼'; font-size: 10px; }
+
+    /* ── 分析页：树形表格 ── */
+    .tree-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      color: var(--accent-blue);
+      font-size: 11px;
+      flex-shrink: 0;
+      user-select: none;
+      transition: transform 0.15s;
+    }
+    .tree-toggle.expanded { transform: rotate(90deg); }
+    .tree-indent {
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .tree-cell {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tree-placeholder {
+      display: inline-block;
+      width: 18px;
+      flex-shrink: 0;
+    }
+    tr.tree-row { transition: background 0.1s; }
+    tr.tree-row.depth-0 > td:first-child { font-weight: 600; }
+    tr.tree-row.depth-1 > td:first-child { color: var(--text-secondary); }
+    tr.tree-row.depth-2 > td:first-child { color: var(--text-disabled); font-size: 12px; }
+    tr.tree-row.placeholder-row > td { color: var(--text-disabled); font-style: italic; }
+
+    /* ── 分析页：汇总统计行 ── */
+    .summary-bar {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      padding: 10px 14px;
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .summary-bar-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .summary-bar-label { color: var(--text-secondary); }
+    .summary-bar-value { font-weight: 600; color: var(--text-primary); }
+
+    /* ── 策略绩效 Tab：排序箭头 ── */
+    .bt-th-sortable {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .bt-th-sortable:hover { background: var(--bg-hover); }
+    .bt-th-sortable.sort-asc::after  { content: ' ▲'; font-size: 10px; }
+    .bt-th-sortable.sort-desc::after { content: ' ▼'; font-size: 10px; }
+
+    /* ── 策略绩效 Tab：分页提示 ── */
+    .bt-pager-hint {
+      font-size: 12px;
+      color: var(--text-disabled);
+      text-align: right;
+      margin-top: 8px;
+      padding: 0 4px;
+    }
+
+    /* ── 策略绩效：选中行高亮 ── */
+    tbody tr.bt-row-selected {
+      background: #e3f0ff !important;
+      outline: 2px solid var(--accent-blue);
+      outline-offset: -2px;
+    }
+    tbody tr.bt-row-selected:hover {
+      background: #d0e6ff !important;
+    }
+    tbody tr.bt-row-clickable {
+      cursor: pointer;
+    }
+
+    /* ── 回测详情面板 ── */
+    #backtest-detail {
+      display: none;
+      margin-top: 16px;
+    }
+    .detail-panel {
+      background: var(--bg-secondary);
+      border: 2px solid var(--accent-blue);
+      border-radius: 10px;
+      padding: 24px;
+      position: relative;
+    }
+    .detail-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-default);
+    }
+    .detail-panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .detail-close-btn {
+      padding: 5px 14px;
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      background: var(--bg-control);
+      color: var(--text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .detail-close-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ── 详情面板：绩效指标网格 ── */
+    .detail-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .detail-metric-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .detail-metric-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .detail-metric-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .detail-metric-value.positive { color: var(--accent-green); }
+    .detail-metric-value.negative { color: var(--accent-red); }
+    .detail-metric-value.blue     { color: var(--accent-blue); }
+
+    /* ── 详情面板：图表区域 ── */
+    .detail-charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .detail-chart-card {
+      background: var(--bg-control);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .detail-chart-canvas-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .detail-chart-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 12px;
+    }
+    .detail-chart-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-disabled);
+      font-size: 13px;
+    }
+
+    /* ── 详情面板：交易记录表格 ── */
+    .detail-trades-hint {
+      font-size: 12px;
+      color: var(--text-disabled);
+      text-align: right;
+      margin-top: 8px;
+    }
+
+    /* ── 响应式：详情面板 ── */
+    @media (max-width: 768px) {
+      .main { padding: 16px; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .asset-grid { grid-template-columns: 1fr; }
+      .period-cards { grid-template-columns: repeat(2, 1fr); }
+      .freshness-cards { grid-template-columns: repeat(2, 1fr); }
+      .donut-wrap { flex-direction: column; align-items: flex-start; }
+      /* 树形表格移动端：缩进减半，汇总栏换行 */
+      .summary-bar { gap: 12px; }
+      .tab-btn { padding: 10px 14px; font-size: 13px; }
+      /* 策略绩效移动端 */
+      #backtest-content .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      #backtest-content .table-wrap { overflow-x: auto; }
+      /* 详情面板移动端 */
+      .detail-charts-row {
+        grid-template-columns: 1fr;
+      }
+      .detail-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* ── 数据健康 Tab ── */
+    .health-period-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .health-period-btn {
+      padding: 6px 16px;
+      border: 1px solid var(--border-default);
+      border-radius: 20px;
+      background: var(--bg-control);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .health-period-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-focus);
+    }
+    .health-period-btn.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #fff;
+    }
+    .health-all-ok {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 8px;
+      color: var(--accent-green);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .health-toggle-btn {
+      padding: 5px 14px;
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      background: var(--bg-control);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .health-toggle-btn:hover { background: var(--bg-hover); }
+    .health-toggle-btn.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #fff;
+    }
+    /* 健康状态图标列 */
+    .health-status-ok   { color: var(--accent-green); }
+    .health-status-warn { color: var(--accent-yellow); }
+    .health-status-err  { color: var(--accent-red); }
+
+  </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">📈 QmtQuant</div>
+    <div class="topbar-subtitle">数据看板</div>
+  </div>
+  <div class="topbar-right">
+    <div class="export-time">
+      <span class="dot" id="status-dot"></span>
+      <span id="export-time-text">加载中...</span>
+    </div>
+    <span id="cache-root-short" style="font-family:monospace;color:var(--text-disabled)"></span>
+  </div>
+</div>
+
+<!-- Tab 导航栏 -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="dashboard">📊 数据看板</button>
+  <button class="tab-btn" data-tab="analysis">🔬 数据分析</button>
+  <button class="tab-btn" data-tab="health">🩺 数据健康</button>
+  <button class="tab-btn" data-tab="backtest">📈 策略绩效</button>
+</div>
+
+<!-- 主内容 -->
+<div class="main">
+  <!-- 数据看板 Tab -->
+  <div class="tab-pane active" id="tab-dashboard">
+    <div id="main-content">
+      <div class="loading-msg">⏳ 正在加载数据，请稍候...</div>
+    </div>
+  </div>
+  <!-- 数据分析 Tab -->
+  <div class="tab-pane" id="tab-analysis">
+    <div id="analysis-content">
+      <div class="loading-msg">⏳ 正在加载数据，请稍候...</div>
+    </div>
+  </div>
+  <!-- 数据健康 Tab -->
+  <div class="tab-pane" id="tab-health">
+    <div id="health-content">
+      <div class="loading-msg">⏳ 正在加载数据，请稍候...</div>
+    </div>
+  </div>
+  <!-- 策略绩效 Tab -->
+  <div class="tab-pane" id="tab-backtest">
+    <div id="backtest-content">
+      <div class="loading-msg">⏳ 正在加载数据，请稍候...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 工具函数 ──────────────────────────────────────────────────────
+
+function fmtSize(mb) {
+  if (mb == null || mb === 0) return '0 MB';
+  if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+  return mb.toFixed(1) + ' MB';
+}
+
+function fmtCount(n) {
+  if (n == null) return '—';
+  return n.toLocaleString('zh-CN');
+}
+
+function fmtDate(d) {
+  return d || '—';
+}
+
+function fmtSync(s) {
+  if (!s) return '—';
+  return s.length >= 16 ? s.slice(0, 16) : s;
+}
+
+function hasData(info) {
+  if (!info) return false;
+  const sc = info.symbol_count || 0;
+  const sub = info.sub_types || {};
+  const anySubData = Object.values(sub).some(v =>
+    (v.symbol_count || 0) + (v.record_count || 0) + (v.file_count || 0) > 0
+  );
+  return sc > 0 || anySubData;
+}
+
+// ── 渲染函数 ──────────────────────────────────────────────────────
+
+function renderMetrics(data) {
+  const totalMb = data.total_size_mb || 0;
+  const isOver = data.is_over_threshold || false;
+  const sizeStr = fmtSize(totalMb);
+  const globalStart = fmtDate(data.global_start_date);
+  const globalEnd   = fmtDate(data.global_end_date);
+
+  // 统计已启用品类数量
+  const assetTypes = data.asset_types || {};
+  let enabledCount = 0, syncedCount = 0;
+  for (const [, info] of Object.entries(assetTypes)) {
+    if (info.enabled) {
+      enabledCount++;
+      if (hasData(info)) syncedCount++;
+    }
+  }
+
+  // 统计 K线股票数（stock/kline）
+  const stockInfo = assetTypes['stock'] || {};
+  const klineCount = stockInfo.symbol_count || 0;
+  const periods = Object.keys(stockInfo.periods || {});
+
+  return `
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">💾 总缓存大小</div>
+        <div class="metric-value ${isOver ? 'warn' : 'ok'}">${sizeStr}</div>
+        <div class="metric-sub">${isOver ? '⚠ 已超过 5GB 警告阈值' : '正常范围内'}</div>
+        ${isOver ? `<div class="progress-bar-wrap"><div class="progress-bar warn" style="width:100%"></div></div>` : ''}
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">📅 全局数据范围</div>
+        <div class="metric-value blue" style="font-size:16px;line-height:1.5">${globalStart}</div>
+        <div class="metric-sub">~ ${globalEnd}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">📦 K线股票数</div>
+        <div class="metric-value ok">${fmtCount(klineCount)}</div>
+        <div class="metric-sub">周期：${periods.length > 0 ? periods.sort().join(' / ') : '—'}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🗂 品类状态</div>
+        <div class="metric-value blue">${syncedCount} <span style="font-size:14px;color:var(--text-secondary)">/ ${enabledCount}</span></div>
+        <div class="metric-sub">已同步 / 已启用品类</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSubTypes(atKey, atInfo) {
+  // 获取所有已注册子类（从 sub_types 中取，未同步的也要展示）
+  const subTypes = atInfo.sub_types || {};
+  const periods  = atInfo.periods  || {};
+
+  if (Object.keys(subTypes).length === 0) return '';
+
+  let html = `<div class="sub-types-section"><div class="sub-types-title">子类明细</div>`;
+
+  for (const [subKey, subInfo] of Object.entries(subTypes)) {
+    const hasSubData = subInfo &&
+      ((subInfo.symbol_count || 0) + (subInfo.record_count || 0) + (subInfo.file_count || 0)) > 0;
+    const dotClass = hasSubData ? 'ok' : 'empty';
+    const displayName = subInfo ? (subInfo.display_name || subKey) : subKey;
+
+    let rightText = '未同步';
+    if (subInfo) {
+      if (subKey === 'kline') {
+        const cnt = subInfo.symbol_count || 0;
+        const ps  = (subInfo.periods || []).sort().join('/') || '—';
+        rightText = `${fmtCount(cnt)} 只 · ${fmtSize(subInfo.size_mb)} · ${ps}`;
+      } else {
+        const rc = subInfo.record_count || subInfo.file_count || 0;
+        rightText = `${fmtCount(rc)} 条 · ${fmtSize(subInfo.size_mb)}`;
+      }
+    }
+
+    html += `
+      <div class="sub-type-item">
+        <div class="sub-type-left">
+          <div class="sub-status-dot ${dotClass}"></div>
+          <span class="sub-type-name">${displayName}</span>
+          <span class="sub-type-key">${subKey}</span>
+        </div>
+        <div class="sub-type-right">${rightText}</div>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderAssetCards(data) {
+  const assetTypes = data.asset_types || {};
+  if (Object.keys(assetTypes).length === 0) {
+    return '<div class="empty-state">暂无品类数据</div>';
+  }
+
+  let html = '<div class="asset-grid">';
+
+  for (const [atKey, atInfo] of Object.entries(assetTypes)) {
+    const enabled = atInfo.enabled !== false;
+    const displayName = atInfo.display_name || atKey;
+    const dataOk = hasData(atInfo);
+
+    let badgeClass, badgeText;
+    if (!enabled) {
+      badgeClass = 'badge-disabled'; badgeText = '预留';
+    } else if (dataOk) {
+      badgeClass = 'badge-ok'; badgeText = '已同步';
+    } else {
+      badgeClass = 'badge-empty'; badgeText = '未同步';
+    }
+
+    const sizeMb = atInfo.size_mb || 0;
+    const symCount = atInfo.symbol_count || 0;
+    const startDate = fmtDate(atInfo.start_date);
+    const endDate   = fmtDate(atInfo.end_date);
+    const lastSync  = fmtSync(atInfo.last_sync);
+
+    html += `
+      <div class="asset-card ${!enabled ? 'disabled' : ''}">
+        <div class="asset-header">
+          <div class="asset-name">
+            ${displayName}
+            <span class="asset-key">${atKey}</span>
+          </div>
+          <span class="asset-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="asset-body">
+          <div class="asset-stat-row">
+            <span class="stat-label">缓存大小</span>
+            <span class="stat-value">${fmtSize(sizeMb)}</span>
+          </div>
+          ${symCount > 0 ? `
+          <div class="asset-stat-row">
+            <span class="stat-label">股票数量</span>
+            <span class="stat-value">${fmtCount(symCount)} 只</span>
+          </div>` : ''}
+          <div class="asset-stat-row">
+            <span class="stat-label">数据范围</span>
+            <span class="stat-value ${startDate === '—' ? 'muted' : ''}">${startDate === '—' ? '—' : startDate + ' ~ ' + endDate}</span>
+          </div>
+          <div class="asset-stat-row">
+            <span class="stat-label">最后同步</span>
+            <span class="stat-value ${lastSync === '—' ? 'muted' : ''}">${lastSync}</span>
+          </div>
+          ${renderSubTypes(atKey, atInfo)}
+        </div>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderKlinePeriods(data) {
+  const stockInfo = (data.asset_types || {})['stock'] || {};
+  const periods = stockInfo.periods || {};
+
+  if (Object.keys(periods).length === 0) {
+    return '<div class="empty-state">暂无 K 线周期数据</div>';
+  }
+
+  let rows = '';
+  for (const [period, pInfo] of Object.entries(periods).sort((a, b) => a[0].localeCompare(b[0]))) {
+    const symCount = pInfo.symbol_count || 0;
+    const sizeMb   = pInfo.size_mb || 0;
+    const start    = fmtDate(pInfo.start_date);
+    const end      = fmtDate(pInfo.end_date);
+    const sync     = fmtSync(pInfo.last_sync);
+
+    rows += `
+      <tr>
+        <td class="mono">${period}</td>
+        <td class="right">${fmtCount(symCount)}</td>
+        <td class="right">${fmtSize(sizeMb)}</td>
+        <td>${start === '—' ? '<span class="muted">—</span>' : start + ' ~ ' + end}</td>
+        <td class="${sync === '—' ? 'muted' : ''}">${sync}</td>
+      </tr>
+    `;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>周期</th>
+            <th class="right">股票数</th>
+            <th class="right">缓存大小</th>
+            <th>数据范围</th>
+            <th>最后同步</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAuxData(data) {
+  const aux = data.aux_data || {};
+  const calCount = aux.calendar_count || 0;
+  const calRange = aux.calendar_range || null;
+  const instCount = aux.instrument_count || 0;
+
+  return `
+    <div class="aux-grid">
+      <div class="aux-card">
+        <div class="aux-card-header">
+          <div class="aux-card-title">📅 交易日历</div>
+          <span class="asset-badge ${calCount > 0 ? 'badge-ok' : 'badge-empty'}">${calCount > 0 ? '已同步' : '未同步'}</span>
+        </div>
+        <div class="aux-card-count">${fmtCount(calCount)}</div>
+        <div class="aux-card-range">${calRange ? '范围：' + calRange : '暂无数据'}</div>
+      </div>
+      <div class="aux-card">
+        <div class="aux-card-header">
+          <div class="aux-card-title">📋 合约基础信息</div>
+          <span class="asset-badge ${instCount > 0 ? 'badge-ok' : 'badge-empty'}">${instCount > 0 ? '已同步' : '未同步'}</span>
+        </div>
+        <div class="aux-card-count">${fmtCount(instCount)}</div>
+        <div class="aux-card-range">${instCount > 0 ? '条合约信息' : '暂无数据，请运行 sync-aux'}</div>
+      </div>
+    </div>
+  `;
+}
+
+// ── 数据分析页渲染函数 ────────────────────────────────────────────
+
+function renderPeriodCards(data) {
+  const stockInfo = (data.asset_types || {})['stock'] || {};
+  const periods = stockInfo.periods || {};
+  const entries = Object.entries(periods).sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (entries.length === 0) {
+    return '<div class="empty-state">暂无 K 线缓存数据</div>';
+  }
+
+  let html = '<div class="period-cards">';
+  for (const [period, pInfo] of entries) {
+    html += `
+      <div class="period-card">
+        <div class="period-card-label">K 线周期</div>
+        <div class="period-card-period">${period}</div>
+        <div class="period-card-row"><span>已缓存股票</span><span>${fmtCount(pInfo.symbol_count || 0)} 只</span></div>
+        <div class="period-card-row"><span>缓存大小</span><span>${fmtSize(pInfo.size_mb || 0)}</span></div>
+        <div class="period-card-row"><span>数据截止</span><span>${fmtDate(pInfo.end_date)}</span></div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderFreshnessCards(data) {
+  const stockInfo = (data.asset_types || {})['stock'] || {};
+  const periods = stockInfo.periods || {};
+  const entries = Object.entries(periods).sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (entries.length === 0) {
+    return '<div class="empty-state">暂无周期数据</div>';
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let html = '<div class="freshness-cards">';
+  for (const [period, pInfo] of entries) {
+    const endDate = pInfo.end_date;
+    let badgeClass = 'nodata', badgeText = '暂无数据', daysText = '';
+    if (endDate) {
+      const d = new Date(endDate);
+      d.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((today - d) / 86400000);
+      daysText = diffDays === 0 ? '今日最新' : `距今 ${diffDays} 天`;
+      if (diffDays <= 1)      { badgeClass = 'fresh';  badgeText = '✅ 最新'; }
+      else if (diffDays <= 7) { badgeClass = 'warn';   badgeText = '⚠ 稍旧'; }
+      else                    { badgeClass = 'stale';  badgeText = '🔴 过期'; }
+    }
+    html += `
+      <div class="freshness-card">
+        <div class="freshness-period">${period}</div>
+        <div class="freshness-date">${endDate || '—'}</div>
+        ${daysText ? `<div style="font-size:12px;color:var(--text-secondary)">${daysText}</div>` : ''}
+        <span class="freshness-badge ${badgeClass}">${badgeText}</span>
+      </div>
+    `;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderDonutChart(data) {
+  const stockInfo = (data.asset_types || {})['stock'] || {};
+  const periods = stockInfo.periods || {};
+  const entries = Object.entries(periods).sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (entries.length === 0) {
+    return '<div class="empty-state" style="min-height:160px;display:flex;align-items:center;justify-content:center">暂无数据</div>';
+  }
+
+  // 调色板
+  const COLORS = ['#1976d2','#2e7d32','#e65100','#6a1b9a','#00695c','#c62828','#0277bd','#558b2f'];
+  const total = entries.reduce((s, [, p]) => s + (p.symbol_count || 0), 0);
+
+  if (total === 0) {
+    return '<div class="empty-state" style="min-height:160px">所有周期股票数均为 0</div>';
+  }
+
+  // SVG 环形图参数
+  const R = 70, r = 44, cx = 90, cy = 90, size = 180;
+  const circumference = 2 * Math.PI * R;
+  let offset = 0;
+  // 从顶部（-90°）开始
+  const startAngle = -Math.PI / 2;
+
+  let circles = '';
+  let legendItems = '';
+  let currentAngle = startAngle;
+
+  for (let i = 0; i < entries.length; i++) {
+    const [period, pInfo] = entries[i];
+    const count = pInfo.symbol_count || 0;
+    const ratio = count / total;
+    const arcLen = ratio * circumference;
+    const color = COLORS[i % COLORS.length];
+
+    // stroke-dasharray 绘制扇区
+    // 旋转角度：将起始点旋转到 currentAngle
+    const rotateDeg = (currentAngle + Math.PI / 2) * 180 / Math.PI;
+    circles += `
+      <circle
+        cx="${cx}" cy="${cy}" r="${R}"
+        fill="none"
+        stroke="${color}"
+        stroke-width="${R - r}"
+        stroke-dasharray="${arcLen.toFixed(3)} ${(circumference - arcLen).toFixed(3)}"
+        stroke-dashoffset="${(circumference / 4).toFixed(3)}"
+        transform="rotate(${rotateDeg.toFixed(2)}, ${cx}, ${cy})"
+        style="cursor:pointer"
+      >
+        <title>${period}：${fmtCount(count)} 只 · ${fmtSize(pInfo.size_mb || 0)} · ${(ratio * 100).toFixed(1)}%</title>
+      </circle>
+    `;
+    currentAngle += ratio * 2 * Math.PI;
+
+    legendItems += `
+      <div class="donut-legend-item">
+        <div class="donut-legend-dot" style="background:${color}"></div>
+        <span class="donut-legend-name">${period}</span>
+        <span class="donut-legend-val">${fmtCount(count)} 只 · ${fmtSize(pInfo.size_mb || 0)}</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="donut-wrap">
+      <div class="donut-svg-wrap">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          ${circles}
+        </svg>
+        <div class="donut-center-text">
+          <div class="donut-center-num">${fmtCount(total)}</div>
+          <div class="donut-center-label">只股票</div>
+        </div>
+      </div>
+      <div class="donut-legend">${legendItems}</div>
+    </div>
+  `;
+}
+
+// ── 板块树形表格 ─────────────────────────────────────────────────
+
+// 板块筛选关键词（全局状态）
+let _sectorFilterKeyword = '';
+
+/**
+ * 将扁平 sectors 列表（含 parent 字段）转换为树形结构。
+ * 若某节点的 parent 在列表中不存在（占位节点），自动补充占位节点。
+ * 返回：{ nodeMap, roots }
+ *   nodeMap: Map<name, treeNode>  所有节点（含补充的占位节点）
+ *   roots:   treeNode[]           顶层节点列表
+ */
+function buildSectorTree(sectors) {
+  const nodeMap = new Map();
+
+  // 第一遍：建立所有真实节点
+  for (const sec of sectors) {
+    nodeMap.set(sec.name, {
+      name:         sec.name,
+      parent:       sec.parent || null,
+      symbol_count: sec.symbol_count || 0,
+      size_mb:      sec.size_mb || 0,
+      last_sync:    sec.last_sync || null,
+      error:        sec.error || null,
+      isPlaceholder: false,
+      isVirtual:    sec.is_virtual || false,   // 虚拟顶层节点（申万行业/证监会行业）
+      children:     [],
+    });
+  }
+
+  // 第二遍：补充占位节点（parent 存在但无对应真实节点）
+  for (const sec of sectors) {
+    if (sec.parent && !nodeMap.has(sec.parent)) {
+      nodeMap.set(sec.parent, {
+        name:         sec.parent,
+        parent:       null,
+        symbol_count: 0,
+        size_mb:      0,
+        last_sync:    null,
+        error:        null,
+        isPlaceholder: true,
+        children:     [],
+      });
+    }
+  }
+
+  // 第三遍：建立父子关系
+  const roots = [];
+  for (const [, node] of nodeMap) {
+    if (node.parent && nodeMap.has(node.parent)) {
+      nodeMap.get(node.parent).children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return { nodeMap, roots };
+}
+
+// 树形表格全局状态
+let _treeExpandedSet = new Set();  // 已展开节点名称集合
+let _treeSortKey = 'symbol_count';
+let _treeSortDir = 'desc';
+let _treeData = null;              // 缓存当前 data，供重渲染使用
+
+/**
+ * 对节点的 children 按当前排序规则排序（同级排序，不跨层级）。
+ */
+function sortChildren(children) {
+  return [...children].sort((a, b) => {
+    const va = a[_treeSortKey] || 0;
+    const vb = b[_treeSortKey] || 0;
+    return _treeSortDir === 'asc' ? va - vb : vb - va;
+  });
+}
+
+/**
+ * 递归生成树形表格行 HTML（支持筛选集合）。
+ * @param {object[]} nodes       当前层节点列表（已排序）
+ * @param {number}   depth       当前层深度（0=顶层）
+ * @param {Set|null} filteredSet 命中节点名称集合，null 表示不筛选
+ * @returns {string}  HTML 字符串
+ */
+function renderTreeRowsFiltered(nodes, depth, filteredSet) {
+  let html = '';
+  const sorted = sortChildren(nodes);
+  for (const node of sorted) {
+    // 筛选：不在命中集合中的节点跳过
+    if (filteredSet && !filteredSet.has(node.name)) continue;
+
+    const hasChildren = node.children.length > 0;
+    // 筛选模式下，只展示命中节点的子节点（过滤后的）
+    const visibleChildren = filteredSet
+      ? node.children.filter(c => filteredSet.has(c.name))
+      : node.children;
+    const hasVisibleChildren = visibleChildren.length > 0;
+    const isExpanded  = _treeExpandedSet.has(node.name);
+    const indent      = depth * 20;
+
+    let toggleHtml;
+    if (hasVisibleChildren) {
+      toggleHtml = `<span class="tree-toggle${isExpanded ? ' expanded' : ''}" data-node="${escHtml(node.name)}">▶</span>`;
+    } else {
+      toggleHtml = `<span class="tree-placeholder"></span>`;
+    }
+
+    const nameHtml = node.isPlaceholder
+      ? `<span style="color:var(--text-disabled);font-style:italic">${escHtml(node.name)}</span>`
+      : node.isVirtual
+        ? `<span style="color:var(--accent-blue);font-weight:700">${escHtml(node.name)}</span>`
+        : filteredSet && node.name.toLowerCase().includes(_sectorFilterKeyword.toLowerCase())
+          ? `<span style="background:#fff3cd;border-radius:3px;padding:0 2px">${escHtml(node.name)}</span>`
+          : escHtml(node.name);
+
+    const cntHtml  = (node.isPlaceholder || node.isVirtual) ? '—' : fmtCount(node.symbol_count);
+    const sizeHtml = (node.isPlaceholder || node.isVirtual) ? '—' : fmtSize(node.size_mb);
+    const syncHtml = (node.isPlaceholder || node.isVirtual) ? '—' : (fmtSync(node.last_sync) || '—');
+    const syncMuted = !node.isPlaceholder && !node.isVirtual && !node.last_sync ? ' muted' : '';
+
+    html += `
+      <tr class="tree-row depth-${depth}${node.isPlaceholder ? ' placeholder-row' : ''}" data-node="${escHtml(node.name)}">
+        <td>
+          <div class="tree-cell">
+            <span class="tree-indent" style="width:${indent}px"></span>
+            ${toggleHtml}
+            ${nameHtml}
+          </div>
+        </td>
+        <td class="right">${cntHtml}</td>
+        <td class="right">${sizeHtml}</td>
+        <td class="${syncMuted}">${syncHtml}</td>
+      </tr>
+    `;
+
+    if (hasVisibleChildren && isExpanded) {
+      html += renderTreeRowsFiltered(visibleChildren, depth + 1, filteredSet);
+    }
+  }
+  return html;
+}
+
+/**
+ * 递归生成树形表格行 HTML（无筛选，向后兼容）。
+ * @param {object[]} nodes  当前层节点列表（已排序）
+ * @param {number}   depth  当前层深度（0=顶层）
+ * @returns {string}  HTML 字符串
+ */
+function renderTreeRows(nodes, depth) {
+  let html = '';
+  const sorted = sortChildren(nodes);
+  for (const node of sorted) {
+    const hasChildren = node.children.length > 0;
+    const isExpanded  = _treeExpandedSet.has(node.name);
+    const indent      = depth * 20;
+
+    // 展开/折叠图标 或 占位符
+    let toggleHtml;
+    if (hasChildren) {
+      toggleHtml = `<span class="tree-toggle${isExpanded ? ' expanded' : ''}" data-node="${escHtml(node.name)}">▶</span>`;
+    } else {
+      toggleHtml = `<span class="tree-placeholder"></span>`;
+    }
+
+    const nameHtml = node.isPlaceholder
+      ? `<span style="color:var(--text-disabled);font-style:italic">${escHtml(node.name)}</span>`
+      : node.isVirtual
+        ? `<span style="color:var(--accent-blue);font-weight:700">${escHtml(node.name)}</span>`
+        : escHtml(node.name);
+
+    const cntHtml  = (node.isPlaceholder || node.isVirtual) ? '—' : fmtCount(node.symbol_count);
+    const sizeHtml = (node.isPlaceholder || node.isVirtual) ? '—' : fmtSize(node.size_mb);
+    const syncHtml = (node.isPlaceholder || node.isVirtual) ? '—' : (fmtSync(node.last_sync) || '—');
+    const syncMuted = !node.isPlaceholder && !node.isVirtual && !node.last_sync ? ' muted' : '';
+
+    html += `
+      <tr class="tree-row depth-${depth}${node.isPlaceholder ? ' placeholder-row' : ''}" data-node="${escHtml(node.name)}">
+        <td>
+          <div class="tree-cell">
+            <span class="tree-indent" style="width:${indent}px"></span>
+            ${toggleHtml}
+            ${nameHtml}
+          </div>
+        </td>
+        <td class="right">${cntHtml}</td>
+        <td class="right">${sizeHtml}</td>
+        <td class="${syncMuted}">${syncHtml}</td>
+      </tr>
+    `;
+
+    // 若已展开，递归渲染子节点
+    if (hasChildren && isExpanded) {
+      html += renderTreeRows(node.children, depth + 1);
+    }
+  }
+  return html;
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * 根据关键词筛选树节点：
+ * 返回「命中节点本身 + 其所有祖先」的名称集合，用于控制行显示。
+ * 空关键词时返回 null（表示不筛选，全部显示）。
+ */
+function calcFilteredNodeSet(roots, keyword) {
+  if (!keyword) return null;
+  const kw = keyword.toLowerCase();
+  const hitSet = new Set();
+
+  function dfs(node) {
+    const selfHit = node.name.toLowerCase().includes(kw);
+    let childHit = false;
+    for (const child of node.children) {
+      if (dfs(child)) childHit = true;
+    }
+    if (selfHit || childHit) {
+      hitSet.add(node.name);
+      return true;
+    }
+    return false;
+  }
+
+  for (const root of roots) dfs(root);
+  return hitSet;
+}
+
+function renderSectorTree(data) {
+  const industryInfo = (data.asset_types || {})['industry'] || {};
+  const membersInfo  = (industryInfo.sub_types || {})['members'] || {};
+  const sectors      = membersInfo.sectors || [];
+
+  if (!sectors || sectors.length === 0) {
+    return '<div class="empty-state">暂无板块数据，请先运行行业数据同步</div>';
+  }
+
+  const { roots } = buildSectorTree(sectors);
+
+  // 汇总统计（基于原始 sectors，不含占位节点）
+  const totalSectors  = sectors.length;
+  const topSectors    = roots.filter(n => !n.isPlaceholder).length;
+  const totalSymbols  = sectors.reduce((s, sec) => s + (sec.symbol_count || 0), 0);
+  const totalSizeMb   = sectors.reduce((s, sec) => s + (sec.size_mb || 0), 0);
+
+  // 列头排序标记
+  function thClass(key) {
+    if (_treeSortKey !== key) return 'sortable right';
+    return `sortable right sort-${_treeSortDir}`;
+  }
+
+  // 筛选集合（null = 不筛选）
+  const filteredSet = calcFilteredNodeSet(roots, _sectorFilterKeyword);
+  const matchCount  = filteredSet ? filteredSet.size : null;
+
+  // 筛选模式下强制展开所有命中节点的祖先，确保子节点可见
+  if (filteredSet) {
+    for (const name of filteredSet) _treeExpandedSet.add(name);
+  }
+
+  const bodyHtml = renderTreeRowsFiltered(roots, 0, filteredSet);
+
+  const filterHtml = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="position:relative;flex:1;max-width:320px">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-disabled);pointer-events:none">🔍</span>
+        <input
+          id="sector-filter-input"
+          type="text"
+          placeholder="按板块名称筛选..."
+          value="${escHtml(_sectorFilterKeyword)}"
+          style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--border-default);
+                 border-radius:6px;background:var(--bg-control);color:var(--text-primary);
+                 font-size:13px;outline:none;"
+        />
+      </div>
+      ${_sectorFilterKeyword ? `
+        <button id="sector-filter-clear"
+          style="padding:6px 12px;border:1px solid var(--border-default);border-radius:6px;
+                 background:var(--bg-control);color:var(--text-secondary);font-size:12px;
+                 cursor:pointer;white-space:nowrap">
+          ✕ 清除
+        </button>
+        <span style="font-size:12px;color:var(--text-secondary)">
+          找到 <strong>${matchCount}</strong> 个相关板块
+        </span>
+      ` : ''}
+    </div>
+  `;
+
+  return `
+    <div class="summary-bar">
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">总板块数</span>
+        <span class="summary-bar-value">${totalSectors}</span>
+      </div>
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">顶层板块数</span>
+        <span class="summary-bar-value">${topSectors}</span>
+      </div>
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">总成分股数</span>
+        <span class="summary-bar-value">${fmtCount(totalSymbols)}</span>
+      </div>
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">总缓存大小</span>
+        <span class="summary-bar-value">${fmtSize(totalSizeMb)}</span>
+      </div>
+    </div>
+    ${filterHtml}
+    <div class="table-wrap">
+      <table id="sector-tree-table">
+        <thead>
+          <tr>
+            <th>板块名称</th>
+            <th class="${thClass('symbol_count')}" data-sort="symbol_count">成分股数量</th>
+            <th class="${thClass('size_mb')}" data-sort="size_mb">缓存大小</th>
+            <th>最后同步</th>
+          </tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAnalysisPage(data) {
+  _treeData = data;
+  const container = document.getElementById('analysis-content');
+  container.innerHTML = `
+    <!-- K 线缓存覆盖率概览 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📦</span> K 线缓存覆盖率</div>
+      ${renderPeriodCards(data)}
+    </div>
+
+    <!-- 数据时效性 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🕐</span> 数据时效性</div>
+      ${renderFreshnessCards(data)}
+    </div>
+
+    <!-- K 线缓存分布环形图 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🍩</span> K 线缓存分布（各周期占比）</div>
+      <div style="min-height:160px">${renderDonutChart(data)}</div>
+    </div>
+
+    <!-- 板块数据汇总（树形） -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🏭</span> 板块数据汇总</div>
+      <div id="sector-tree-wrap">${renderSectorTree(data)}</div>
+    </div>
+  `;
+
+  // 绑定树形表格事件
+  bindSectorTreeEvents(data);
+}
+
+function bindSectorTreeEvents(data) {
+  const wrap = document.getElementById('sector-tree-wrap');
+  if (!wrap) return;
+
+  // 展开/折叠点击
+  wrap.querySelectorAll('.tree-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nodeName = toggle.dataset.node;
+      if (_treeExpandedSet.has(nodeName)) {
+        // 折叠：递归移除所有后代
+        _collapseNode(nodeName, data);
+      } else {
+        _treeExpandedSet.add(nodeName);
+      }
+      // 重渲染
+      wrap.innerHTML = renderSectorTree(data);
+      bindSectorTreeEvents(data);
+    });
+  });
+
+  // 列头排序
+  const table = document.getElementById('sector-tree-table');
+  if (table) {
+    table.querySelectorAll('thead th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (_treeSortKey === key) {
+          _treeSortDir = _treeSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          _treeSortKey = key;
+          _treeSortDir = 'desc';
+        }
+        wrap.innerHTML = renderSectorTree(data);
+        bindSectorTreeEvents(data);
+      });
+    });
+  }
+
+  // 筛选输入框
+  const filterInput = document.getElementById('sector-filter-input');
+  if (filterInput) {
+    // 聚焦样式
+    filterInput.addEventListener('focus', () => {
+      filterInput.style.borderColor = 'var(--border-focus)';
+    });
+    filterInput.addEventListener('blur', () => {
+      filterInput.style.borderColor = 'var(--border-default)';
+    });
+    // 实时筛选（防抖 200ms，兼容中文输入法）
+    let _filterTimer = null;
+    let _isComposing = false;  // 标记中文输入法组合输入状态
+
+    // 组合输入开始（拼音/注音等输入法选字过程）
+    filterInput.addEventListener('compositionstart', () => {
+      _isComposing = true;
+    });
+    // 组合输入结束（汉字已上屏），此时再触发筛选
+    filterInput.addEventListener('compositionend', () => {
+      _isComposing = false;
+      clearTimeout(_filterTimer);
+      _filterTimer = setTimeout(() => {
+        _sectorFilterKeyword = filterInput.value.trim();
+        wrap.innerHTML = renderSectorTree(data);
+        bindSectorTreeEvents(data);
+        const newInput = document.getElementById('sector-filter-input');
+        if (newInput) {
+          newInput.focus();
+          const len = newInput.value.length;
+          newInput.setSelectionRange(len, len);
+        }
+      }, 200);
+    });
+    // input 事件：组合输入期间跳过，英文/数字直接触发
+    filterInput.addEventListener('input', () => {
+      if (_isComposing) return;
+      clearTimeout(_filterTimer);
+      _filterTimer = setTimeout(() => {
+        _sectorFilterKeyword = filterInput.value.trim();
+        wrap.innerHTML = renderSectorTree(data);
+        bindSectorTreeEvents(data);
+        // 重新聚焦并将光标移到末尾
+        const newInput = document.getElementById('sector-filter-input');
+        if (newInput) {
+          newInput.focus();
+          const len = newInput.value.length;
+          newInput.setSelectionRange(len, len);
+        }
+      }, 200);
+    });
+  }
+
+  // 清除按钮
+  const clearBtn = document.getElementById('sector-filter-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      _sectorFilterKeyword = '';
+      wrap.innerHTML = renderSectorTree(data);
+      bindSectorTreeEvents(data);
+      const newInput = document.getElementById('sector-filter-input');
+      if (newInput) newInput.focus();
+    });
+  }
+}
+
+/**
+ * 递归折叠节点：将该节点及其所有后代从展开集合中移除。
+ */
+function _collapseNode(nodeName, data) {
+  _treeExpandedSet.delete(nodeName);
+  const industryInfo = (data.asset_types || {})['industry'] || {};
+  const membersInfo  = (industryInfo.sub_types || {})['members'] || {};
+  const sectors      = membersInfo.sectors || [];
+  const { nodeMap }  = buildSectorTree(sectors);
+  const node = nodeMap.get(nodeName);
+  if (node) {
+    for (const child of node.children) {
+      _collapseNode(child.name, data);
+    }
+  }
+}
+
+// ── 策略绩效页渲染函数 ──────────────────────────────────────────────
+
+// 策略绩效表格排序状态
+let _btSortKey = null;
+let _btSortDir = 'desc';
+
+/**
+ * 格式化数值，null/undefined 显示「—」
+ */
+function fmtBtNum(v, decimals, suffix) {
+  if (v == null) return '—';
+  return v.toFixed(decimals) + (suffix || '');
+}
+
+/**
+ * 格式化资金（万元）
+ */
+function fmtCapital(v) {
+  if (v == null) return '—';
+  if (v >= 10000) return (v / 10000).toFixed(2) + ' 万';
+  return v.toFixed(0);
+}
+
+/**
+ * 渲染策略绩效概览指标卡片
+ */
+function renderBtMetrics(results) {
+  const total = results.length;
+
+  // 最佳总收益率
+  const returns = results.map(r => r.total_return).filter(v => v != null);
+  const bestReturn = returns.length > 0 ? Math.max(...returns) : null;
+
+  // 最大回撤均值
+  const drawdowns = results.map(r => r.max_drawdown).filter(v => v != null);
+  const avgDrawdown = drawdowns.length > 0
+    ? drawdowns.reduce((s, v) => s + v, 0) / drawdowns.length
+    : null;
+
+  // 最高夏普比率
+  const sharpes = results.map(r => r.sharpe_ratio).filter(v => v != null);
+  const bestSharpe = sharpes.length > 0 ? Math.max(...sharpes) : null;
+
+  return `
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">🔢 总回测次数</div>
+        <div class="metric-value blue">${total}</div>
+        <div class="metric-sub">历史回测记录</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🏆 最佳总收益率</div>
+        <div class="metric-value ok">${bestReturn != null ? bestReturn.toFixed(2) + '%' : '—'}</div>
+        <div class="metric-sub">所有回测中最高值</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">📉 最大回撤均值</div>
+        <div class="metric-value warn">${avgDrawdown != null ? avgDrawdown.toFixed(2) + '%' : '—'}</div>
+        <div class="metric-sub">所有回测平均最大回撤</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">⚡ 最高夏普比率</div>
+        <div class="metric-value blue">${bestSharpe != null ? bestSharpe.toFixed(3) : '—'}</div>
+        <div class="metric-sub">所有回测中最高值</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染回测结果列表表格（含排序与分页提示）
+ */
+function renderBtTable(results) {
+  const MAX_ROWS = 20;
+  const total = results.length;
+
+  // 排序
+  let sorted = [...results];
+  if (_btSortKey) {
+    sorted.sort((a, b) => {
+      const va = a[_btSortKey];
+      const vb = b[_btSortKey];
+      // null 值排最后
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === 'string') {
+        return _btSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      return _btSortDir === 'asc' ? va - vb : vb - va;
+    });
+  }
+
+  // 分页：只显示前 MAX_ROWS 条
+  const displayed = sorted.slice(0, MAX_ROWS);
+
+  // 列定义
+  const cols = [
+    { key: 'strategy_name', label: '策略名称',  align: 'left',  sortable: true },
+    { key: '_period',       label: '回测区间',  align: 'left',  sortable: false },
+    { key: 'init_capital',  label: '初始资金',  align: 'right', sortable: true },
+    { key: 'total_return',  label: '总收益率',  align: 'right', sortable: true },
+    { key: 'annual_return', label: '年化收益率',align: 'right', sortable: true },
+    { key: 'max_drawdown',  label: '最大回撤',  align: 'right', sortable: true },
+    { key: 'sharpe_ratio',  label: '夏普比率',  align: 'right', sortable: true },
+    { key: 'trade_count',   label: '交易笔数',  align: 'right', sortable: true },
+    { key: 'mtime',         label: '回测时间',  align: 'left',  sortable: true },
+  ];
+
+  // 表头
+  let thead = '<tr>';
+  for (const col of cols) {
+    let cls = col.align === 'right' ? 'right' : '';
+    if (col.sortable) {
+      cls += ' bt-th-sortable';
+      if (_btSortKey === col.key) {
+        cls += ' sort-' + _btSortDir;
+      }
+    }
+    thead += `<th class="${cls.trim()}" ${col.sortable ? `data-bt-sort="${col.key}"` : ''}>${col.label}</th>`;
+  }
+  thead += '</tr>';
+
+  // 表体
+  let tbody = '';
+  for (let i = 0; i < displayed.length; i++) {
+    const r = displayed[i];
+    const period = (r.start_time && r.end_time)
+      ? r.start_time + ' ~ ' + r.end_time
+      : (r.start_time || r.end_time || '—');
+
+    const returnVal = r.total_return;
+    let returnCls = '';
+    if (returnVal != null) {
+      returnCls = returnVal > 0 ? 'style="color:var(--accent-green);font-weight:600"'
+                                : returnVal < 0 ? 'style="color:var(--accent-red);font-weight:600"' : '';
+    }
+
+    tbody += `
+      <tr class="bt-row-clickable" data-idx="${i}">
+        <td>${escHtml(r.strategy_name || '—')}</td>
+        <td class="mono">${escHtml(period)}</td>
+        <td class="right">${fmtCapital(r.init_capital)}</td>
+        <td class="right" ${returnCls}>${fmtBtNum(r.total_return, 2, '%')}</td>
+        <td class="right">${fmtBtNum(r.annual_return, 2, '%')}</td>
+        <td class="right">${fmtBtNum(r.max_drawdown, 2, '%')}</td>
+        <td class="right">${fmtBtNum(r.sharpe_ratio, 3)}</td>
+        <td class="right">${r.trade_count != null ? r.trade_count : '—'}</td>
+        <td class="mono">${escHtml(r.mtime || '—')}</td>
+      </tr>
+    `;
+  }
+
+  const pagerHint = total > MAX_ROWS
+    ? `<div class="bt-pager-hint">共 ${total} 条，仅显示最新 ${MAX_ROWS} 条</div>`
+    : '';
+
+  return `
+    <div class="table-wrap">
+      <table id="bt-result-table">
+        <thead>${thead}</thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+    ${pagerHint}
+  `;
+}
+
+/**
+ * 渲染数据健康页完整内容
+ */
+
+// 数据健康页全局状态
+let _healthCurrentPeriod = null;   // 当前选中周期
+let _healthShowAll = false;        // 是否显示全部（含健康股票）
+let _healthSortKey = null;         // 排序列
+let _healthSortDir = 'desc';       // 排序方向
+
+function renderHealthPage(data) {
+  const container = document.getElementById('health-content');
+  if (!container) return;
+
+  const vbp = data.validate_by_period;
+
+  // 空状态：字段不存在
+  if (!vbp) {
+    container.innerHTML = `
+      <div class="card">
+        <div class="empty-state" style="padding:60px 24px">
+          <div style="font-size:40px;margin-bottom:16px">📭</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px">暂无检查数据</div>
+          <div style="color:var(--text-secondary)">请重新运行以下命令后刷新页面：</div>
+          <div style="margin-top:16px;font-family:monospace;font-size:13px;
+                      background:var(--bg-control);border:1px solid var(--border-default);
+                      border-radius:6px;padding:10px 18px;display:inline-block;
+                      color:var(--accent-blue)">python dashboard_export.py</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // 空状态：辅助数据未就绪（_skipped）
+  if (vbp._skipped) {
+    const reason = vbp.reason || '辅助数据文件缺失';
+    container.innerHTML = `
+      <div class="card">
+        <div class="empty-state" style="padding:60px 24px">
+          <div style="font-size:40px;margin-bottom:16px">⚠️</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px">辅助数据未就绪</div>
+          <div style="color:var(--text-secondary);margin-bottom:16px">${escHtml(reason)}</div>
+          <div style="color:var(--text-secondary)">请先执行以下命令同步辅助数据：</div>
+          <div style="margin-top:12px;font-family:monospace;font-size:13px;
+                      background:var(--bg-control);border:1px solid var(--border-default);
+                      border-radius:6px;padding:10px 18px;display:inline-block;
+                      color:var(--accent-blue)">
+            dm sync --asset stock --sub calendar<br>
+            dm sync --asset stock --sub instrument
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // 获取所有周期（过滤掉 _skipped 等元字段）
+  const periods = Object.keys(vbp).filter(k => !k.startsWith('_'));
+
+  if (periods.length === 0) {
+    container.innerHTML = `
+      <div class="card">
+        <div class="empty-state" style="padding:60px 24px">
+          <div style="font-size:40px;margin-bottom:16px">📭</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px">暂无检查数据</div>
+          <div style="color:var(--text-secondary)">请重新运行 <code>python dashboard_export.py</code></div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // 初始化当前周期
+  if (!_healthCurrentPeriod || !vbp[_healthCurrentPeriod]) {
+    _healthCurrentPeriod = periods[0];
+  }
+
+  // 渲染周期切换按钮组（多周期时才显示）
+  let periodBarHtml = '';
+  if (periods.length > 1) {
+    const btns = periods.map(p => `
+      <button class="health-period-btn ${p === _healthCurrentPeriod ? 'active' : ''}"
+              data-period="${p}">${p}</button>
+    `).join('');
+    periodBarHtml = `<div class="health-period-bar">${btns}</div>`;
+  }
+
+  container.innerHTML = `
+    ${periodBarHtml}
+    <div id="health-period-content"></div>
+  `;
+
+  // 绑定周期切换事件
+  container.querySelectorAll('.health-period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _healthCurrentPeriod = btn.dataset.period;
+      _healthShowAll = false;
+      _healthSortKey = null;
+      _healthSortDir = 'desc';
+      // 更新按钮状态
+      container.querySelectorAll('.health-period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderHealthPeriodContent(vbp[_healthCurrentPeriod]);
+    });
+  });
+
+  // 渲染当前周期内容
+  renderHealthPeriodContent(vbp[_healthCurrentPeriod]);
+}
+
+/**
+ * 渲染某个周期的汇总卡片 + 明细表格
+ */
+function renderHealthPeriodContent(periodData) {
+  const container = document.getElementById('health-period-content');
+  if (!container || !periodData) return;
+
+  const summary = periodData.summary || {};
+  const results = periodData.results || [];
+
+  // 汇总指标卡片
+  const total       = summary.total       || 0;
+  const healthy     = summary.healthy     || 0;
+  const noCache     = summary.no_cache    || 0;
+  const headMissing = summary.head_missing || 0;
+  const tailMissing = summary.tail_missing || 0;
+  const hasGap      = summary.has_gap     || 0;
+  const healthRate  = total > 0 ? (healthy / total * 100).toFixed(1) : '—';
+
+  const allOkBanner = (healthy === total && total > 0)
+    ? `<div class="health-all-ok"><span>✅</span> 数据完全健康，所有 ${total} 只股票均无问题</div>`
+    : '';
+
+  const metricsHtml = `
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">📋 总检查数</div>
+        <div class="metric-value blue">${fmtCount(total)}</div>
+        <div class="metric-sub">本周期股票总数</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✅ 健康数</div>
+        <div class="metric-value ok">${fmtCount(healthy)}</div>
+        <div class="metric-sub">健康率 ${healthRate}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">📭 无缓存</div>
+        <div class="metric-value ${noCache > 0 ? '' : 'ok'}" style="${noCache > 0 ? 'color:var(--text-disabled)' : ''}">${fmtCount(noCache)}</div>
+        <div class="metric-sub">本地无 Parquet 文件</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">⬅️ 前缺失</div>
+        <div class="metric-value ${headMissing > 0 ? 'warn' : 'ok'}">${fmtCount(headMissing)}</div>
+        <div class="metric-sub">上市日起数据不完整</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">➡️ 后缺失</div>
+        <div class="metric-value ${tailMissing > 0 ? 'warn' : 'ok'}">${fmtCount(tailMissing)}</div>
+        <div class="metric-sub">最新数据未及时更新</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🕳 中间缺口</div>
+        <div class="metric-value ${hasGap > 0 ? '' : 'ok'}" style="${hasGap > 0 ? 'color:var(--accent-red)' : ''}">${fmtCount(hasGap)}</div>
+        <div class="metric-sub">缓存范围内存在缺口</div>
+      </div>
+    </div>
+  `;
+
+  // 明细表格
+  const tableHtml = renderHealthTable(results);
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> 健康概览
+        <span style="font-size:11px;color:var(--text-disabled);font-weight:400;margin-left:4px">
+          检查时间：${escHtml(summary.checked_at || '—')}
+        </span>
+      </div>
+      ${allOkBanner}
+      ${metricsHtml}
+    </div>
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span><span class="icon">📋</span> 股票明细</span>
+        <button class="health-toggle-btn ${_healthShowAll ? 'active' : ''}" id="health-toggle-btn">
+          ${_healthShowAll ? '仅显示问题股票' : '显示全部'}
+        </button>
+      </div>
+      <div id="health-table-wrap">${tableHtml}</div>
+    </div>
+  `;
+
+  // 绑定"显示全部"切换按钮
+  const toggleBtn = document.getElementById('health-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      _healthShowAll = !_healthShowAll;
+      toggleBtn.textContent = _healthShowAll ? '仅显示问题股票' : '显示全部';
+      toggleBtn.classList.toggle('active', _healthShowAll);
+      document.getElementById('health-table-wrap').innerHTML = renderHealthTable(results);
+      bindHealthTableSort(results);
+    });
+  }
+
+  // 绑定表头排序
+  bindHealthTableSort(results);
+}
+
+/**
+ * 渲染健康明细表格
+ */
+function renderHealthTable(results) {
+  // 过滤：默认只显示有问题的股票
+  let displayData = _healthShowAll
+    ? results
+    : results.filter(r =>
+        !r.has_cache ||
+        !r.field_ok ||
+        !r.type_ok ||
+        (r.head_missing || 0) > 0 ||
+        (r.tail_missing || 0) > 0 ||
+        (r.gap_count || 0) > 0
+      );
+
+  // 排序
+  if (_healthSortKey) {
+    displayData = [...displayData].sort((a, b) => {
+      const va = a[_healthSortKey] ?? -1;
+      const vb = b[_healthSortKey] ?? -1;
+      return _healthSortDir === 'asc' ? va - vb : vb - va;
+    });
+  }
+
+  if (displayData.length === 0) {
+    return `<div style="padding:24px;text-align:center;color:var(--text-secondary)">
+      ${_healthShowAll ? '暂无数据' : '✅ 所有股票均健康，无问题记录'}
+    </div>`;
+  }
+
+  const cols = [
+    { key: 'symbol',       label: '股票代码',   align: 'left',  sortable: false },
+    { key: 'cache_start',  label: '缓存起始',   align: 'left',  sortable: false },
+    { key: 'cache_end',    label: '缓存最新',   align: 'left',  sortable: false },
+    { key: 'head_missing', label: '前缺失(天)', align: 'right', sortable: true  },
+    { key: 'tail_missing', label: '后缺失(天)', align: 'right', sortable: true  },
+    { key: 'gap_count',    label: '缺口段数',   align: 'right', sortable: true  },
+    { key: '_status',      label: '状态',       align: 'center',sortable: false },
+  ];
+
+  let thead = '<tr>';
+  for (const col of cols) {
+    let cls = col.align === 'right' ? 'right' : col.align === 'center' ? 'center' : '';
+    if (col.sortable) {
+      cls += ' bt-th-sortable';
+      if (_healthSortKey === col.key) cls += ' sort-' + _healthSortDir;
+    }
+    thead += `<th class="${cls.trim()}" ${col.sortable ? `data-health-sort="${col.key}"` : ''}>${col.label}</th>`;
+  }
+  thead += '</tr>';
+
+  let tbody = '';
+  for (const r of displayData) {
+    const isHealthy = r.has_cache && r.field_ok && r.type_ok &&
+      !(r.head_missing > 0) && !(r.tail_missing > 0) && !(r.gap_count > 0);
+
+    let statusIcon;
+    if (!r.has_cache) {
+      statusIcon = `<span class="health-status-err" title="无缓存">❌</span>`;
+    } else if (!r.field_ok || !r.type_ok) {
+      statusIcon = `<span class="health-status-err" title="字段/类型异常">⚠️</span>`;
+    } else if (r.gap_count > 0) {
+      statusIcon = `<span class="health-status-err" title="存在中间缺口">🕳</span>`;
+    } else if (r.head_missing > 0 || r.tail_missing > 0) {
+      statusIcon = `<span class="health-status-warn" title="存在前/后缺失">⚠️</span>`;
+    } else {
+      statusIcon = `<span class="health-status-ok" title="健康">✅</span>`;
+    }
+
+    const headVal = r.head_missing > 0
+      ? `<span style="color:var(--accent-yellow);font-weight:600">${r.head_missing}</span>`
+      : `<span style="color:var(--text-disabled)">0</span>`;
+    const tailVal = r.tail_missing > 0
+      ? `<span style="color:var(--accent-yellow);font-weight:600">${r.tail_missing}</span>`
+      : `<span style="color:var(--text-disabled)">0</span>`;
+    const gapVal = r.gap_count > 0
+      ? `<span style="color:var(--accent-red);font-weight:600">${r.gap_count}</span>`
+      : `<span style="color:var(--text-disabled)">0</span>`;
+
+    tbody += `
+      <tr>
+        <td class="mono">${escHtml(r.symbol || '—')}</td>
+        <td class="mono">${escHtml(r.cache_start || '—')}</td>
+        <td class="mono">${escHtml(r.cache_end || '—')}</td>
+        <td class="right">${headVal}</td>
+        <td class="right">${tailVal}</td>
+        <td class="right">${gapVal}</td>
+        <td style="text-align:center">${statusIcon}</td>
+      </tr>
+    `;
+  }
+
+  const hint = !_healthShowAll
+    ? `<div class="bt-pager-hint">共 ${displayData.length} 条问题记录（点击"显示全部"查看全部 ${results.length} 只）</div>`
+    : `<div class="bt-pager-hint">共 ${displayData.length} 只股票</div>`;
+
+  return `
+    <div class="table-wrap">
+      <table id="health-detail-table">
+        <thead>${thead}</thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+    ${hint}
+  `;
+}
+
+/**
+ * 绑定健康明细表格的列头排序事件
+ */
+function bindHealthTableSort(results) {
+  const table = document.getElementById('health-detail-table');
+  if (!table) return;
+  table.querySelectorAll('th[data-health-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.healthSort;
+      if (_healthSortKey === key) {
+        _healthSortDir = _healthSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _healthSortKey = key;
+        _healthSortDir = 'desc';
+      }
+      document.getElementById('health-table-wrap').innerHTML = renderHealthTable(results);
+      bindHealthTableSort(results);
+    });
+  });
+}
+
+/**
+ * 渲染策略绩效页完整内容
+ */
+function renderBacktestPage(data) {
+  const container = document.getElementById('backtest-content');
+  const results = data.backtest_results || [];
+
+  if (results.length === 0) {
+    container.innerHTML = `
+      <div class="card">
+        <div class="empty-state" style="padding:60px 24px">
+          <div style="font-size:40px;margin-bottom:16px">📭</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px">暂无回测记录</div>
+          <div style="color:var(--text-secondary)">请先运行回测后重新导出数据</div>
+          <div style="margin-top:16px;font-family:monospace;font-size:13px;
+                      background:var(--bg-control);border:1px solid var(--border-default);
+                      border-radius:6px;padding:10px 18px;display:inline-block;
+                      color:var(--accent-blue)">
+            python dashboard_export.py
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <!-- 概览指标卡片 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> 绩效概览</div>
+      ${renderBtMetrics(results)}
+    </div>
+
+    <!-- 回测结果列表 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> 回测记录列表</div>
+      <div id="bt-table-wrap">${renderBtTable(results)}</div>
+    </div>
+
+    <!-- 回测详情面板（点击行后展开） -->
+    <div id="backtest-detail"></div>
+  `;
+
+  // 绑定表头排序事件
+  bindBtTableEvents(results);
+}
+
+// 当前选中的回测记录索引（-1 表示无选中）
+let _btSelectedIdx = -1;
+// 当前已渲染的 Chart.js 实例（用于销毁重建）
+let _btNavChart = null;
+let _btDdChart  = null;
+
+function bindBtTableEvents(results) {
+  const wrap = document.getElementById('bt-table-wrap');
+  if (!wrap) return;
+  const table = document.getElementById('bt-result-table');
+  if (!table) return;
+
+  // 表头排序
+  table.querySelectorAll('thead th[data-bt-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.btSort;
+      if (_btSortKey === key) {
+        _btSortDir = _btSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _btSortKey = key;
+        _btSortDir = 'desc';
+      }
+      // 排序后重置选中状态
+      _btSelectedIdx = -1;
+      const detailEl = document.getElementById('backtest-detail');
+      if (detailEl) { detailEl.style.display = 'none'; detailEl.innerHTML = ''; }
+      destroyBtCharts();
+      wrap.innerHTML = renderBtTable(results);
+      bindBtTableEvents(results);
+    });
+  });
+
+  // 行点击：展开/收起详情面板
+  table.querySelectorAll('tbody tr.bt-row-clickable').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const idx = parseInt(tr.dataset.idx, 10);
+      const detailEl = document.getElementById('backtest-detail');
+      if (!detailEl) return;
+
+      if (_btSelectedIdx === idx) {
+        // 再次点击同一行 → 收起
+        _btSelectedIdx = -1;
+        tr.classList.remove('bt-row-selected');
+        detailEl.style.display = 'none';
+        detailEl.innerHTML = '';
+        destroyBtCharts();
+      } else {
+        // 切换到新行
+        _btSelectedIdx = idx;
+        // 更新高亮行
+        table.querySelectorAll('tbody tr.bt-row-clickable').forEach(r => r.classList.remove('bt-row-selected'));
+        tr.classList.add('bt-row-selected');
+        // 获取对应的原始数据（按当前排序后的 displayed 数组）
+        const sorted = getSortedResults(results);
+        const record = sorted[idx];
+        if (!record) return;
+        // 渲染详情面板
+        detailEl.style.display = 'block';
+        renderDetailPanel(record, detailEl);
+        // 平滑滚动到详情面板
+        setTimeout(() => {
+          detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+      }
+    });
+  });
+}
+
+/**
+ * 获取按当前排序规则排序后的 results（与 renderBtTable 保持一致）
+ */
+function getSortedResults(results) {
+  const MAX_ROWS = 20;
+  let sorted = [...results];
+  if (_btSortKey) {
+    sorted.sort((a, b) => {
+      const va = a[_btSortKey];
+      const vb = b[_btSortKey];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === 'string') {
+        return _btSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      return _btSortDir === 'asc' ? va - vb : vb - va;
+    });
+  }
+  return sorted.slice(0, MAX_ROWS);
+}
+
+/**
+ * 销毁已有的 Chart.js 实例
+ */
+function destroyBtCharts() {
+  if (_btNavChart) { try { _btNavChart.destroy(); } catch(e) {} _btNavChart = null; }
+  if (_btDdChart)  { try { _btDdChart.destroy();  } catch(e) {} _btDdChart  = null; }
+}
+
+/**
+ * 渲染回测详情面板
+ */
+function renderDetailPanel(record, container) {
+  destroyBtCharts();
+
+  const strategyName = record.strategy_name || '未知策略';
+  const period = (record.start_time && record.end_time)
+    ? record.start_time + ' ~ ' + record.end_time
+    : (record.start_time || record.end_time || '—');
+
+  container.innerHTML = `
+    <div class="detail-panel">
+      <div class="detail-panel-header">
+        <div class="detail-panel-title">
+          <span>📊</span>
+          <span>${escHtml(strategyName)}</span>
+          <span style="font-size:13px;font-weight:400;color:var(--text-secondary)">${escHtml(period)}</span>
+        </div>
+        <button class="detail-close-btn" id="detail-close-btn">✕ 收起</button>
+      </div>
+
+      <!-- 完整绩效指标 -->
+      <div style="margin-bottom:20px">
+        <div class="card-title" style="margin-bottom:12px"><span class="icon">📈</span> 完整绩效指标</div>
+        ${renderDetailMetrics(record)}
+      </div>
+
+      <!-- 图表区域 -->
+      <div class="detail-charts-row">
+        <div class="detail-chart-card">
+          <div class="detail-chart-title">📉 净值曲线</div>
+          ${(record.daily_stats && record.daily_stats.length > 0)
+            ? '<div class="detail-chart-canvas-wrap"><canvas id="bt-nav-chart"></canvas></div>'
+            : '<div class="detail-chart-empty">暂无每日数据</div>'}
+        </div>
+        <div class="detail-chart-card">
+          <div class="detail-chart-title">🔻 历史回撤</div>
+          ${(record.daily_stats && record.daily_stats.length > 0)
+            ? '<div class="detail-chart-canvas-wrap"><canvas id="bt-dd-chart"></canvas></div>'
+            : '<div class="detail-chart-empty">暂无每日数据</div>'}
+        </div>
+      </div>
+
+      <!-- 交易记录明细 -->
+      <div>
+        <div class="card-title" style="margin-bottom:12px"><span class="icon">📋</span> 交易记录明细</div>
+        ${renderDetailTrades(record)}
+      </div>
+    </div>
+  `;
+
+  // 绑定收起按钮
+  const closeBtn = document.getElementById('detail-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      _btSelectedIdx = -1;
+      container.style.display = 'none';
+      container.innerHTML = '';
+      destroyBtCharts();
+      // 取消行高亮
+      const table = document.getElementById('bt-result-table');
+      if (table) {
+        table.querySelectorAll('tbody tr.bt-row-selected').forEach(r => r.classList.remove('bt-row-selected'));
+      }
+    });
+  }
+
+  // 渲染图表
+  if (record.daily_stats && record.daily_stats.length > 0) {
+    renderNavChart(record);
+    renderDrawdownChart(record);
+  }
+}
+
+/**
+ * 渲染完整绩效指标卡片（14项）
+ */
+function renderDetailMetrics(r) {
+  function fmtM(v, decimals, suffix) {
+    if (v == null) return '—';
+    return v.toFixed(decimals) + (suffix || '');
+  }
+  function fmtMoney(v) {
+    if (v == null) return '—';
+    if (v >= 10000) return (v / 10000).toFixed(2) + ' 万';
+    return v.toFixed(0);
+  }
+
+  const returnVal = r.total_return;
+  const returnCls = returnVal == null ? '' : returnVal > 0 ? 'positive' : returnVal < 0 ? 'negative' : '';
+
+  const metrics = [
+    { label: '初始资金',   value: fmtMoney(r.init_capital),          cls: '' },
+    { label: '最终资产',   value: fmtMoney(r.final_capital),         cls: '' },
+    { label: '总收益率',   value: fmtM(r.total_return, 2, '%'),      cls: returnCls },
+    { label: '年化收益率', value: fmtM(r.annual_return, 2, '%'),     cls: '' },
+    { label: '最大回撤',   value: fmtM(r.max_drawdown, 2, '%'),      cls: '' },
+    { label: '交易天数',   value: r.trade_days != null ? r.trade_days + ' 天' : '—', cls: '' },
+    { label: '夏普比率',   value: fmtM(r.sharpe_ratio, 3),           cls: 'blue' },
+    { label: '索提诺比率', value: fmtM(r.sortino_ratio, 3),          cls: '' },
+    { label: '波动率',     value: fmtM(r.volatility, 4),             cls: '' },
+    { label: 'Alpha',      value: fmtM(r.alpha, 4),                  cls: '' },
+    { label: 'Beta',       value: fmtM(r.beta, 4),                   cls: '' },
+    { label: '无风险利率', value: fmtM(r.risk_free_rate, 4),         cls: '' },
+    { label: '胜率',       value: fmtM(r.win_rate, 2, '%'),          cls: '' },
+    { label: '盈亏比',     value: fmtM(r.profit_loss_ratio, 3),      cls: '' },
+  ];
+
+  let html = '<div class="detail-metrics-grid">';
+  for (const m of metrics) {
+    html += `
+      <div class="detail-metric-card">
+        <div class="detail-metric-label">${m.label}</div>
+        <div class="detail-metric-value ${m.cls}">${m.value}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  return html;
+}
+
+/**
+ * 渲染净值曲线图（Chart.js）
+ */
+function renderNavChart(record) {
+  const canvas = document.getElementById('bt-nav-chart');
+  if (!canvas) return;
+
+  const dailyStats = record.daily_stats || [];
+  const benchmarkData = record.benchmark_data || [];
+
+  const labels = dailyStats.map(d => d.date || '');
+  const navData = dailyStats.map(d => d.nav != null ? parseFloat(d.nav.toFixed(4)) : null);
+
+  // 基准净值：优先用 benchmark_data，否则用 daily_stats 中的 benchmark_close 归一化
+  let benchmarkNavData = null;
+  if (benchmarkData.length > 0) {
+    benchmarkNavData = benchmarkData.map(d => d.benchmark_nav != null ? parseFloat(d.benchmark_nav.toFixed(4)) : null);
+  }
+
+  const datasets = [
+    {
+      label: record.strategy_name || '策略净值',
+      data: navData,
+      borderColor: '#1976d2',
+      backgroundColor: 'rgba(25,118,210,0.08)',
+      borderWidth: 2,
+      pointRadius: navData.length > 60 ? 0 : 3,
+      tension: 0.1,
+      fill: false,
+    }
+  ];
+
+  if (benchmarkNavData) {
+    datasets.push({
+      label: record.benchmark || '基准',
+      data: benchmarkNavData,
+      borderColor: '#aaaabc',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderDash: [4, 3],
+      pointRadius: 0,
+      tension: 0.1,
+      fill: false,
+    });
+  }
+
+  destroyBtCharts();
+  _btNavChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 12 }, boxWidth: 16 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(4) : '—'}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 8,
+            font: { size: 11 },
+            color: '#555770',
+          },
+          grid: { color: 'rgba(0,0,0,0.06)' }
+        },
+        y: {
+          ticks: { font: { size: 11 }, color: '#555770' },
+          grid: { color: 'rgba(0,0,0,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * 渲染历史回撤曲线图（Chart.js）
+ */
+function renderDrawdownChart(record) {
+  const canvas = document.getElementById('bt-dd-chart');
+  if (!canvas) return;
+
+  const dailyStats = record.daily_stats || [];
+  const labels = dailyStats.map(d => d.date || '');
+  const navArr = dailyStats.map(d => d.nav != null ? d.nav : null);
+
+  // 计算历史回撤序列
+  const drawdownArr = [];
+  let maxNav = -Infinity;
+  for (const nav of navArr) {
+    if (nav == null) { drawdownArr.push(null); continue; }
+    if (nav > maxNav) maxNav = nav;
+    const dd = maxNav > 0 ? ((nav - maxNav) / maxNav * 100) : 0;
+    drawdownArr.push(parseFloat(dd.toFixed(4)));
+  }
+
+  _btDdChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '历史回撤 (%)',
+        data: drawdownArr,
+        borderColor: '#c62828',
+        backgroundColor: 'rgba(198,40,40,0.15)',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.1,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 12 }, boxWidth: 16 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `回撤: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + '%' : '—'}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 8, font: { size: 11 }, color: '#555770' },
+          grid: { color: 'rgba(0,0,0,0.06)' }
+        },
+        y: {
+          ticks: {
+            font: { size: 11 },
+            color: '#555770',
+            callback: v => v.toFixed(1) + '%'
+          },
+          grid: { color: 'rgba(0,0,0,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * 渲染交易记录明细表格
+ */
+function renderDetailTrades(record) {
+  const trades = record.trades || [];
+  if (trades.length === 0) {
+    return '<div class="empty-state">暂无交易记录</div>';
+  }
+
+  const MAX_TRADES = 50;
+  const displayed = trades.slice(0, MAX_TRADES);
+
+  function fmtTrade(v) {
+    if (v == null || v === '' || v === 'None') return '—';
+    return escHtml(String(v));
+  }
+  function fmtTradeNum(v, decimals) {
+    if (v == null || v === '' || v === 'None') return '—';
+    const n = parseFloat(v);
+    if (isNaN(n)) return escHtml(String(v));
+    return n.toFixed(decimals);
+  }
+
+  let rows = '';
+  for (const t of displayed) {
+    const action = (t.action || '').toLowerCase();
+    let actionHtml;
+    if (action === 'buy') {
+      actionHtml = `<span style="color:var(--accent-green);font-weight:600">买入</span>`;
+    } else if (action === 'sell') {
+      actionHtml = `<span style="color:var(--accent-red);font-weight:600">卖出</span>`;
+    } else {
+      actionHtml = fmtTrade(t.action);
+    }
+
+    rows += `
+      <tr>
+        <td class="mono">${fmtTrade(t.datetime)}</td>
+        <td class="mono">${fmtTrade(t.code)}</td>
+        <td>${actionHtml}</td>
+        <td class="right">${fmtTradeNum(t.price, 3)}</td>
+        <td class="right">${fmtTrade(t.volume)}</td>
+        <td class="right">${fmtTradeNum(t.amount, 2)}</td>
+        <td class="right">${fmtTradeNum(t.commission, 4)}</td>
+        <td class="right">${fmtTradeNum(t.stamp_tax, 4)}</td>
+        <td class="right">${fmtTradeNum(t.total_asset, 2)}</td>
+      </tr>
+    `;
+  }
+
+  const hint = trades.length > MAX_TRADES
+    ? `<div class="detail-trades-hint">共 ${trades.length} 条，仅显示前 ${MAX_TRADES} 条</div>`
+    : '';
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>代码</th>
+            <th>方向</th>
+            <th class="right">价格</th>
+            <th class="right">数量</th>
+            <th class="right">金额</th>
+            <th class="right">手续费</th>
+            <th class="right">印花税</th>
+            <th class="right">总资产</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${hint}
+  `;
+}
+
+
+
+// ── Tab 切换逻辑 ──────────────────────────────────────────────────
+
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+      // 切换按钮状态
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // 切换内容区（先隐藏，再显示，触发 opacity 过渡）
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+        pane.style.opacity = '0';
+      });
+      const pane = document.getElementById('tab-' + target);
+      if (pane) {
+        pane.classList.add('active');
+        // 下一帧触发过渡
+        requestAnimationFrame(() => { pane.style.opacity = '1'; });
+      }
+    });
+  });
+}
+
+function renderAll(data) {
+  const main = document.getElementById('main-content');
+
+  // 更新顶部状态
+  const exportTime = data.exported_at || '未知';
+  document.getElementById('export-time-text').textContent = '数据时间：' + exportTime;
+  document.getElementById('status-dot').className = 'dot ok';
+
+  const cacheRoot = data.cache_root || '';
+  const shortRoot = cacheRoot.replace(/^.*\/\.qmtquant/, '~/.qmtquant');
+  document.getElementById('cache-root-short').textContent = shortRoot;
+
+  main.innerHTML = `    <!-- 概览指标 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> 缓存概览</div>
+      ${renderMetrics(data)}
+      <div class="metric-label" style="margin-top:8px">缓存目录</div>
+      <div class="cache-path" style="margin-top:6px">${data.cache_root || '—'}</div>
+    </div>
+
+    <!-- 辅助数据 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🗄</span> 辅助数据状态</div>
+      ${renderAuxData(data)}
+    </div>
+
+    <!-- K线周期明细 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span> K 线周期明细（stock / kline）</div>
+      ${renderKlinePeriods(data)}
+    </div>
+
+    <!-- 品类状态 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🗂</span> 各品类数据状态</div>
+      ${renderAssetCards(data)}
+    </div>
+  `;
+}
+
+// ── 加载数据 ──────────────────────────────────────────────────────
+
+async function loadData() {
+  const main = document.getElementById('main-content');
+  try {
+    // 尝试加载同目录下的 dashboard_data.json
+    const resp = await fetch('./dashboard_data.json?t=' + Date.now());
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+    const data = await resp.json();
+    renderAll(data);
+    renderAnalysisPage(data);
+    renderHealthPage(data);
+    renderBacktestPage(data);
+  } catch (err) {
+    document.getElementById('status-dot').className = 'dot error';
+    document.getElementById('export-time-text').textContent = '数据加载失败';
+    main.innerHTML = `
+      <div class="error-msg">
+        <div style="font-size:40px;margin-bottom:16px">⚠️</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:8px">无法加载数据文件</div>
+        <div style="color:var(--text-secondary);margin-bottom:16px">
+          请先运行以下命令生成数据，然后刷新页面：
+        </div>
+        <div style="background:var(--bg-control);border:1px solid var(--border-default);
+                    border-radius:6px;padding:12px 20px;display:inline-block;
+                    font-family:monospace;font-size:14px;color:var(--accent-blue)">
+          python dashboard_export.py
+        </div>
+        <code>${err.message}</code>
+        <div style="margin-top:24px;font-size:12px;color:var(--text-disabled)">
+          注意：直接双击打开 HTML 文件时，浏览器安全策略会阻止读取本地 JSON 文件。<br>
+          建议使用 <code style="color:var(--accent-blue)">python -m http.server 8080</code> 启动本地服务后访问。
+        </div>
+      </div>
+    `;
+  }
+}
+
+initTabs();
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+    "run_mode": "backtest",
+    "system": {
+        "userdata_path": "",
+        "session_id": 1001,
+        "run_mode": "backtest"
+    },
+    "account": {
+        "account_id": "88888888",
+        "account_type": "STOCK"
+    },
+    "strategy_file": "strategy/ZTSXP/ZTSXP.py",
+    "data_mode": "custom",
+    "backtest": {
+        "start_time": "20241115",
+        "end_time": "20250517",
+        "init_capital": 1000000.0,
+        "min_volume": 100,
+        "benchmark": "000300.SH",
+        "trade_cost": {
+            "min_commission": 5.0,
+            "commission_rate": 0.0001,
+            "stamp_tax_rate": 0.0005,
+            "flow_fee": 0.0,
+            "slippage": {
+                "type": "ratio",
+                "tick_size": 0.01,
+                "tick_count": 2,
+                "ratio": 0.01
+            }
+        },
+        "trigger": {
+            "type": "1m",
+            "start_time": "09:30:00",
+            "end_time": "15:00:00"
+        }
+    },
+    "data": {
+        "kline_period": "1m",
+        "dividend_type": "front",
+        "fields": [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "amount",
+            "preClose",
+            "suspendFlag"
+        ],
+        "stock_list": ["000001.SZ"]
+    },
+    "market_callback": {
+        "pre_market_enabled": false,
+        "pre_market_time": "08:30:00",
+        "post_market_enabled": true,
+        "post_market_time": "15:30:00"
+    },
+    "risk": {
+        "position_limit": 0.95,
+        "order_limit": 100,
+        "loss_limit": 0.1
+    }
+}

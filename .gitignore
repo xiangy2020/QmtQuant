@@ -1,4 +1,4 @@
-# KhQuant 看海量化交易系统 - Git忽略文件
+# QmtQuant 量化交易系统 - Git忽略文件
 
 # ===== Python 相关 =====
 # 字节码文件
@@ -63,10 +63,11 @@ celerybeat-schedule
 .venv
 env/
 venv/
+venv_win/
 ENV/
 env.bak/
 venv.bak/
-khquant_env/
+qmtquant_env/
 
 # Spyder project settings
 .spyderproject
@@ -85,9 +86,6 @@ dmypy.json
 
 # ===== 量化交易系统特定 =====
 # 配置文件（可能包含敏感信息）
-configs/*.kh
-configs/temp_*.kh
-configs/temp_running_config.kh
 *.config
 config.json
 settings.ini
@@ -257,13 +255,4 @@ sandbox/
 
 # 文档生成
 docs/_build/
-doc/_build/ 
-__pycache__/
-app.log
-__pycache__
-installer copy.iss
-installer.iss
-build_inno.bat
-__pycache__/GUIplotLoadData.cpython-311.pyc
-Output
-app.log
+doc/_build/

@@ -1,0 +1,27 @@
+[Unit]
+Description=QmtQuant 数据同步任务（A股收盘后全量同步）
+After=network.target
+# 依赖 API 服务不是必须的，同步任务独立运行
+# Requires=qmtquant-api.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/data/qmtquant
+EnvironmentFile=/data/qmtquant/.env
+
+# 第一步：同步辅助数据（交易日历 + 合约信息）
+ExecStart=/data/qmtquant/venv/bin/python dm_cli.py sync --asset stock --sub calendar,instrument
+
+# 第二步：同步 K 线数据（沪深 A 股全量）
+ExecStart=/data/qmtquant/venv/bin/python dm_cli.py sync --asset stock --sub kline --sector 沪深A股
+
+# 超时设置：全量同步可能耗时较长，设置 4 小时超时
+TimeoutStartSec=14400
+
+# 日志输出到 journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=qmtquant-sync
+
+[Install]
+WantedBy=multi-user.target
