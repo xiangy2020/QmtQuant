@@ -31,10 +31,33 @@ sudo apt update
 sudo apt install python3.13 python3.13-venv python3.13-dev
 ```
 
-**CentOS / RHEL / Rocky Linux：**
+**CentOS / RHEL / TencentOS（源码编译安装）：**
+
+> CentOS / TencentOS 默认 yum/dnf 源不包含 Python 3.13，需从源码编译。
+
 ```bash
-sudo dnf install python3.13 python3.13-devel
+# 1. 安装编译依赖
+sudo yum groupinstall -y "Development Tools"
+sudo yum install -y openssl-devel bzip2-devel libffi-devel zlib-devel \
+    readline-devel sqlite-devel xz-devel tk-devel wget
+
+# 2. 下载 Python 3.13 源码（如内网无法访问，可先在外网下载后上传）
+cd /tmp
+wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz
+tar -xzf Python-3.13.0.tgz
+cd Python-3.13.0
+
+# 3. 编译安装（--altinstall 避免覆盖系统默认 python3）
+./configure --enable-optimizations --with-ensurepip=install
+make -j$(nproc)
+sudo make altinstall
+
+# 4. 验证
+python3.13 --version
 ```
+
+> **内网环境提示**：若服务器无法访问外网，可在有网络的机器下载
+> `Python-3.13.0.tgz` 后通过 `scp` 上传到服务器再执行步骤 3、4。
 
 验证安装：
 ```bash
@@ -309,6 +332,15 @@ python3.13 --version
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
 sudo apt install python3.13 python3.13-venv python3.13-dev
+
+# CentOS / RHEL / TencentOS 安装 Python 3.13（源码编译）
+sudo yum groupinstall -y "Development Tools"
+sudo yum install -y openssl-devel bzip2-devel libffi-devel zlib-devel \
+    readline-devel sqlite-devel xz-devel tk-devel wget
+cd /tmp && wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz
+tar -xzf Python-3.13.0.tgz && cd Python-3.13.0
+./configure --enable-optimizations --with-ensurepip=install
+make -j$(nproc) && sudo make altinstall
 
 # 重新运行部署脚本
 bash /data/qmtquant/deploy/setup.sh
