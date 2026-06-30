@@ -68,7 +68,7 @@ Windows 机器上的 xqshare server 必须：
 ```bash
 # 将项目克隆到 /data/qmtquant
 sudo mkdir -p /data
-sudo git clone <仓库地址> /data/qmtquant
+sudo git clone git@github.com:xiangy2020/QmtQuant.git /data/qmtquant
 cd /data/qmtquant
 ```
 
